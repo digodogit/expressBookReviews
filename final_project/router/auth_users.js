@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-let books = require("./booksdb.js");
+let books = require("./booksdb.js").books;
+const axios = require('axios').default;
 const regd_users = express.Router();
 
 let users = [];
@@ -9,9 +10,9 @@ const isValid = (username)=>{ //returns boolean
 //write code to check is the username is valid
 }
 
-const authenticatedUser = (username,password)=>{ //returns boolean
+const authenticatedUser = (loginUsername,loginPassword)=>{ //returns boolean
 //write code to check if username and password match the one we have in records.
-const result = users.filter(user => user.username===username && user.password===password)
+const result = users.filter(({username, password})=> username===loginUsername && password===loginPassword)
 return result.length > 0;
 }
 
@@ -19,44 +20,53 @@ return result.length > 0;
 regd_users.post("/login", (req,res) => {
   //Write your code here    
   const user = req.body.user;
-    if (!user) {
-        return res.status(404).json({ message: "Body Empty" });
-    }
-    if (authenticatedUser(user.username,user.password)){
-    // Generate JWT access token
-    let accessToken = jwt.sign({
-        data: user
-    }, 'access', { expiresIn: 60 * 60 });
-    // Store access token in session
-    req.session.authorization = {
-        accessToken,username
-    }
-    return res.status(200).send("User successfully logged in");
-    }   
-  return res.status(300).json({message: "Yet to be implemented"});
+  if (!user) {
+    return res.status(404).json({ message: "Body Empty" });
+}
+if (authenticatedUser(user.username,user.password)){
+// Generate JWT access token
+let accessToken = jwt.sign({
+    data: user
+}, 'access', { expiresIn: 60 * 60 });
+// Store access token in session
+req.session.authorization = {
+    accessToken, user
+}
+return res.status(200).send("User successfully logged in");
+}   
+return res.status(300).json({message: "Yet to be implemented"});
 });
 
 // Add a book review
 regd_users.put("/auth/review/:isbn", (req, res) => {
   //Write your code here
-  const bookByISBN = Object.getOwnPropertyDescriptor(books, req.params.isbn).value.reviews;
-  if(bookByISBN){
-  bookByISBN[username]=req.query.review
-  res.send(bookByISBN);
-  return res.status(200).send("Review successfully posted");
-}
-  return res.status(404).json({message: "book not found"});
+    try{
+        const bookByISBN = Object.getOwnPropertyDescriptor(books, req.params.isbn).value;
+        if(bookByISBN){
+            bookByISBN.reviews[req.session.authorization.user.username] = req.query.review
+
+            return res.status(200).json({message:"Review successfully posted",book: bookByISBN});
+        }
+    }catch (err){
+        console.log(err)
+        }
+    return res.status(400).json({message: "erro"});
 });
 
 regd_users.delete("/auth/review/:isbn", (req, res) => {
-    const bookByISBN = Object.getOwnPropertyDescriptor(books, req.params.isbn).value.reviews;
-    if(bookByISBN){
-    delete bookByISBN[username]
-    res.send(bookByISBN);
-    return res.status(200).send("Review successfully posted");
-  }
-    return res.status(404).json({message: "book not found"});
+    try{
+        const bookByISBN = Object.getOwnPropertyDescriptor(books, req.params.isbn).value;
+        if(bookByISBN){
+            delete bookByISBN.reviews[req.session.authorization.user.username]
+
+            return res.status(200).json({message:"Review successfully deleted",book: bookByISBN});
+        }
+    }catch (err){
+        console.log(err)
+        }
+    return res.status(400).json({message: "erro"});
 });
+
 module.exports.authenticated = regd_users;
 module.exports.isValid = isValid;
 module.exports.users = users;

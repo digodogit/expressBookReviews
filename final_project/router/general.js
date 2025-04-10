@@ -2,6 +2,7 @@ const express = require('express');
 let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
+const axios = require('axios').default;
 const public_users = express.Router();
 
 
@@ -9,11 +10,11 @@ public_users.post("/register", (req,res) => {
   //Write your code here
   
   const register = users.find(({username,password})=>
-  req.query.username===username && req.query.password===password
+  req.body.username===username && req.body.password===password
 )
 console.log(users)
 if (!register){
-    users.push({'username': req.query.username, 'password':req.query.password})
+    users.push({'username': req.body.username, 'password':req.body.password})
     return res.status(200).json({message: "user registered"});
 }
   
@@ -21,47 +22,59 @@ if (!register){
 });
 
 // Get the book list available in the shop
-public_users.get('/',function (req, res) {
-  //Write your code here
-  res.send(JSON.stringify(books,null,4))
-  return res.status(300).json({message: "Yet to be implemented"});
+public_users.get('/', async function (req, res) {
+  //The function use axios to get the books using the router "books_routes" implemented on booksdb.js
+    try{
+  const result = await axios.get("http://localhost:5000/books")
+  res.send(result.data)
+    }catch (err){
+  return res.status(400).json({message: err});
+}
 });
 
 // Get book details based on ISBN
-public_users.get('/isbn/:isbn',function (req, res) {
-  //Write your code here
-  const bookByISBN = JSON.stringify(Object.getOwnPropertyDescriptor(books, req.params.isbn).value);
-  res.send(bookByISBN);
-  return res.status(300).json({message: "Yet to be implemented"});
+public_users.get('/isbn/:isbn',async function (req, res) {
+  //The function use axios to get the book by ISBN using the router "books_routes" implemented on booksdb.js
+  try{
+    const result = await axios.get(`http://localhost:5000/books/isbn/${req.params.isbn}`)
+    res.send(result.data)
+      }catch (err){
+    return res.status(400).json({message: err});
+  }
  });
   
 // Get book details based on author
-public_users.get('/author/:author',function (req, res) {
-  //Write your code here
-  const bookByAuthor = JSON.stringify(Object.values(books)
-  .find((search)=> search.author===req.params.author)
-  );
-  res.send(bookByAuthor)
-  return res.status(300).json({message: "Yet to be implemented"});
-});
+public_users.get('/author/:author',async function (req, res) {
+  //The function use axios to get the book by author using the router "books_routes" implemented on booksdb.js
+  try{
+
+    const result = await axios.get(`http://localhost:5000/books/author/${req.params.author.replace(/\s/g, '').toLowerCase()}`)
+    res.send(result.data)
+      }catch (err){
+    return res.status(400).json({message: err});
+  }
+ });
 
 // Get all books based on title
-public_users.get('/title/:title',function (req, res) {
-  //Write your code here
-  const bookByTitle = JSON.stringify(Object.values(books)
-  .find((search)=> search.title===req.params.title)
-  );
-  res.send(bookByTitle);
-  return res.status(200).json({message: "Successful"});
-});
+public_users.get('/title/:title',async function (req, res) {
+  //The function use axios to get the book by title using the router "books_routes" implemented on booksdb.js
+  try{
+    const result = await axios.get(`http://localhost:5000/books/title/${req.params.title.replace(/\s/g, '').toLowerCase()}`)
+    res.send(result.data)
+      }catch (err){
+    return res.status(400).json({message: err});
+  }
+ });
 
 //  Get book review
-public_users.get('/review/:isbn',function (req, res) {
+public_users.get('/review/:isbn',async function (req, res) {
   //Write your code here
-  const bookByISBN = JSON.stringify(Object.getOwnPropertyDescriptor(books, req.params.isbn)
-  .value.reviews);
-  res.send(bookByISBN);
-  return res.status(200).json({message: "Yet to be implemented"});
-});
+  try{
+    const result = await axios.get(`http://localhost:5000/books/review/${req.params.isbn}`)
+    return res.send(result.data)
+      }catch (err){
+    return res.status(400).json({message: err});
+  }
+ });
 
 module.exports.general = public_users;
